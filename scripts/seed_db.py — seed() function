@@ -1,0 +1,54 @@
+def seed():
+    """Insert demo data into all tables."""
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+
+    # Seed machines
+    for mid, mclass, loc, idate in MACHINES:
+        cur.execute(
+            """
+            INSERT INTO machines (machine_id, machine_class, location, install_date)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (machine_id) DO NOTHING
+            """,
+            (mid, mclass, loc, idate),
+        )
+
+    # Seed sensors (5 per machine = 30 total)
+    for mid, mclass, _, _ in MACHINES:
+        for stype, unit, lo, hi in SENSOR_TYPES:
+            sid = f"{mid}_{stype}"
+            cur.execute(
+                """
+                INSERT INTO sensors (sensor_id, machine_id, sensor_type, unit, min_valid, max_valid)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (sensor_id) DO NOTHING
+                """,
+                (sid, mid, stype, unit, lo, hi),
+            )
+
+    # Seed users (bcrypt hash of 'password123' — demo only!)
+    demo_hash = "$2b$12$LJ3m12345...xyzABCDE"
+    for uname, role, fname in USERS:
+        cur.execute(
+            """
+            INSERT INTO users (username, password_hash, role, full_name)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (username) DO NOTHING
+            """,
+            (uname, demo_hash, role, fname),
+        )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    print(
+        f"Seeded {len(MACHINES)} machines, "
+        f"{len(MACHINES)*len(SENSOR_TYPES)} sensors, "
+        f"{len(USERS)} users"
+    )
+
+
+if __name__ == "__main__":
+    seed()
